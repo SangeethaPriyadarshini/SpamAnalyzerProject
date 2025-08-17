@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>📩 Spam Analyzer</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f8f9fa; text-align: center; padding: 40px; }
+    h1 { color: #333; }
+    form { margin-top: 20px; }
+    textarea { width: 60%; height: 100px; padding: 10px; border-radius: 8px; border: 1px solid #ccc; }
+    button { margin-top: 20px; padding: 10px 20px; font-size: 16px; border: none; border-radius: 8px; background: #007bff; color: white; cursor: pointer; }
+    button:hover { background: #0056b3; }
+    .result { margin-top: 20px; font-size: 20px; font-weight: bold; color: #222; }
+  </style>
+</head>
+<body>
+  <h1>📩 Spam Analyzer</h1>
+
+  <form action="/predict" method="post">
+    <textarea name="message" placeholder="Enter your message here..."></textarea><br>
+    <button type="submit">Analyze</button>
+  </form>
+
+  {% if prediction_text %}
+    <div class="result">{{ prediction_text }}</div>
+  {% endif %}
+</body>
+</html>
