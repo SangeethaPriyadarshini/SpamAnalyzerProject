@@ -1,0 +1,180 @@
+pip install pandas numpy matplotlib seaborn nltk langdetect scikit-learn tensorflow
+import pandas as pd
+import numpy as np
+import re
+import string
+import nltk
+from nltk.corpus import stopwords
+from nltk.stem import PorterStemmer
+from langdetect import detect
+from sklearn.model_selection import train_test_split
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+nltk.download('stopwords')
+stop_words = set(stopwords.words('english'))
+stemmer = PorterStemmer()
+sms_df = pd.read_csv(r"C:\Users\murug\Downloads\spam.csv", encoding='latin-1')[['v1', 'v2']]
+sms_df.columns = ['label', 'text']
+sms_df['label'] = sms_df['label'].map({'ham': 0, 'spam': 1})
+email_df = pd.read_csv(r"C:\Users\murug\Downloads\emails.csv.zip", compression='zip')
+
+# Check structure
+print(email_df.columns)
+
+# Normalize if needed
+if 'spam' in email_df.columns:
+    email_df['label'] = email_df['spam'].astype(int)
+email_df = email_df[['text', 'label']]
+df = pd.concat([sms_df, email_df], ignore_index=True)
+
+# Drop missing values & duplicates
+df.dropna(inplace=True)
+df.drop_duplicates(inplace=True)
+def detect_language(text):
+    try:
+        return detect(text)
+    except:
+        return "error"
+
+df['language'] = df['text'].apply(detect_language)
+df = df[df['language'] == 'en']
+def clean_text(text):
+    text = text.lower()
+    text = re.sub(r'http\S+|www.\S+', '', text)  # remove links
+    text = re.sub(r'\d+', '', text)              # remove digits
+    text = text.translate(str.maketrans('', '', string.punctuation))
+    words = text.split()
+    words = [stemmer.stem(word) for word in words if word not in stop_words]
+    return ' '.join(words)
+
+df['clean_text'] = df['text'].apply(clean_text)
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+# Now use seaborn for plotting
+sns.countplot(x='label', data=df)
+plt.title("Spam vs Ham Messages")
+plt.xlabel("Label")
+plt.ylabel("Count")
+plt.show()
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+
+# Tokenize text
+tokenizer = Tokenizer(num_words=5000, oov_token="<OOV>")
+tokenizer.fit_on_texts(df['clean_text'])
+
+sequences = tokenizer.texts_to_sequences(df['clean_text'])
+padded_sequences = pad_sequences(sequences, padding='post', maxlen=100)
+
+X = padded_sequences
+y = df['label'].values
+
+# Save tokenizer for later use in deployment
+import pickle
+with open("tokenizer.pkl", "wb") as f:
+    pickle.dump(tokenizer, f)
+import numpy as np
+import pandas as pd
+from sklearn.model_selection import train_test_split
+
+# Example: Create sample data
+# Replace this with your actual data loading code
+X = np.random.rand(100, 4)  # Create a sample feature matrix with 100 samples and 4 features
+y = np.random.randint(0, 2, 100)  # Create sample target values (binary classification)
+
+# Now use the function with non-empty data
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Verify the shapes of the resulting datasets
+print(f"X_train shape: {X_train.shape}")
+print(f"X_test shape: {X_test.shape}")
+np.save("X_train.npy", X_train)
+np.save("X_test.npy", X_test)
+np.save("y_train.npy", y_train)
+np.save("y_test.npy", y_test)
+df[['text', 'clean_text', 'label']].to_csv("cleaned_data.csv", index=False)
+
+print("Preprocessing complete! Ready for LSTM model.")
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Embedding, LSTM, Dense, Dropout
+from tensorflow.keras.models import load_model
+import matplotlib.pyplot as plt
+import pickle
+X_train = np.load("X_train.npy")
+X_test = np.load("X_test.npy")
+y_train = np.load("y_train.npy")
+y_test = np.load("y_test.npy")
+
+with open("tokenizer.pkl", "rb") as f:
+    tokenizer = pickle.load(f)
+vocab_size = 5000
+embedding_dim = 64
+max_length = 100
+
+model = Sequential()
+model.add(Embedding(vocab_size, embedding_dim, input_length=max_length))
+model.add(LSTM(64, return_sequences=True))
+model.add(Dropout(0.5))
+model.add(LSTM(32))
+model.add(Dropout(0.5))
+model.add(Dense(1, activation='sigmoid'))
+
+model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+model.summary()
+history = model.fit(X_train, y_train, epochs=5, batch_size=64, validation_data=(X_test, y_test))
+plt.plot(history.history['accuracy'], label='Train Accuracy')
+plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
+plt.title("Accuracy over Epochs")
+plt.legend()
+plt.show()
+
+plt.plot(history.history['loss'], label='Train Loss')
+plt.plot(history.history['val_loss'], label='Validation Loss')
+plt.title("Loss over Epochs")
+plt.legend()
+plt.show()
+model.save("spam_lstm_model.h5")
+print("Model saved as spam_lstm_model.h5")
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+
+def predict_spam(text):
+    from langdetect import detect
+    import re, string
+    from nltk.stem import PorterStemmer
+    from nltk.corpus import stopwords
+    import nltk
+    nltk.download('stopwords')
+    
+    stop_words = set(stopwords.words('english'))
+    stemmer = PorterStemmer()
+    
+    try:
+        if detect(text) != 'en':
+            return "Non-English message detected."
+    except:
+        return "Language detection failed."
+
+    text = text.lower()
+    text = re.sub(r'http\S+|www.\S+', '', text)
+    text = re.sub(r'\d+', '', text)
+    text = text.translate(str.maketrans('', '', string.punctuation))
+    words = text.split()
+    words = [stemmer.stem(word) for word in words if word not in stop_words]
+    clean_text = ' '.join(words)
+
+    seq = tokenizer.texts_to_sequences([clean_text])
+    padded = pad_sequences(seq, maxlen=100, padding='post')
+    prob = model.predict(padded)[0][0]
+
+    label = "SPAM" if prob > 0.5 else "HAM"
+    confidence = round(prob * 100, 2) if label == "SPAM" else round((1 - prob) * 100, 2)
+    return f"{label} with {confidence}% confidence"
+print(predict_spam("Congratulations! You've won a free iPhone! Claim now."))
+print(predict_spam("Hey, just checking in to confirm the meeting."))
